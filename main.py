@@ -57,7 +57,7 @@ def login():
 
         # save user's session token into a cookie
         response = make_response(redirect(url_for('index')))
-        response.set_cookie("session_token", session_token, httponly=True, samesite='Strict')
+        response.set_cookie("session_token", session_token, httponly=True)
 
         return response
 
@@ -116,12 +116,25 @@ def profile_edit():
     elif request.method == "POST":
         name = request.form.get("profile-name")
         email = request.form.get("profile-email")
-
+        old_password = request.form.get("old-password")
+        new_password = request.form.get("new-password")
         # update the user object
         user.name = name
         user.email = email
 
-        # store changes into the database
+        if old_password and new_password:
+            hashed_old_password = hashlib.sha256(old_password.encode()).hexdigest()  # hash the old password
+            hashed_new_password = hashlib.sha256(new_password.encode()).hexdigest()  # hash the old password
+
+            # check if old password hash is equal to the password hash in the database
+            if hashed_old_password == user.password:
+                # if yes, save the new password hash in the database
+                user.password = hashed_new_password
+            else:
+                # if not, return error
+                return "Wrong (old) password! Go back and try again."
+
+                    # store changes into the database
         db.add(user)
         db.commit()
 
@@ -150,7 +163,7 @@ def profile_delete():
 
 @app.route("/users", methods=["GET"])
 def all_users():
-    users = db.query(User).filter_by(deleted=False).all()  # find all un-deleted users
+    users = db.query(User).all()  # find all un-deleted users
 
     return render_template("users.html", users=users)
 
